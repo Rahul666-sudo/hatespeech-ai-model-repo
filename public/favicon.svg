@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="HateGuard AI shield">
+  <rect width="64" height="64" rx="14" fill="#FAFF69"/>
+  <path d="M32 10.5 50 17.5V31c0 11-8.5 19.5-18 23.5C22.5 50.5 14 42 14 31V17.5L32 10.5Z" fill="#0A0A0A"/>
+  <path d="M23 30h18M23 38h12" fill="none" stroke="#FAFF69" stroke-width="4" stroke-linecap="round"/>
+</svg>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, AlertTriangle, AlertOctagon, Loader2, Send } from "lucide-react";
+import { AlertOctagon, AlertTriangle, Loader2, Send, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,11 +13,40 @@ interface AnalysisResult {
   explanation: string;
 }
 
-const classificationConfig: Record<Classification, { label: string; icon: typeof Shield; colorClass: string; bgClass: string }> = {
-  clean: { label: "No Hate Speech Detected", icon: Shield, colorClass: "text-safe", bgClass: "bg-safe/10 border-safe/20" },
-  offensive: { label: "Offensive Language Detected", icon: AlertTriangle, colorClass: "text-warning", bgClass: "bg-warning/10 border-warning/20" },
-  hate_speech: { label: "Hate Speech Detected", icon: AlertOctagon, colorClass: "text-destructive", bgClass: "bg-destructive/10 border-destructive/20" },
+const classificationConfig: Record<
+  Classification,
+  {
+    label: string;
+    icon: typeof ShieldCheck;
+    iconClass: string;
+    panelClass: string;
+  }
+> = {
+  clean: {
+    label: "No hate speech detected",
+    icon: ShieldCheck,
+    iconClass: "text-primary",
+    panelClass: "border-primary/40",
+  },
+  offensive: {
+    label: "Offensive language detected",
+    icon: AlertTriangle,
+    iconClass: "text-warning",
+    panelClass: "border-warning/40",
+  },
+  hate_speech: {
+    label: "Hate speech detected",
+    icon: AlertOctagon,
+    iconClass: "text-destructive",
+    panelClass: "border-destructive/40",
+  },
 };
+
+const tiers = [
+  { label: "Clean", className: "text-primary" },
+  { label: "Offensive", className: "text-warning" },
+  { label: "Hate speech", className: "text-destructive" },
+];
 
 const AnalyzerSection = () => {
   const [text, setText] = useState("");
@@ -49,102 +78,123 @@ const AnalyzerSection = () => {
   };
 
   const config = result ? classificationConfig[result.classification] : null;
+  const confidence =
+    result && Number.isFinite(result.confidence)
+      ? `${(result.confidence * 100).toFixed(1)}%`
+      : "—";
 
   return (
-    <section id="analyzer" className="py-20 px-4">
-      <div className="container mx-auto max-w-3xl">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-3">
-          Try the <span className="text-gradient">Analyzer</span>
-        </h2>
-        <p className="text-muted-foreground text-center mb-10">
-          Enter any text below and our AI will classify it instantly.
-        </p>
+    <section id="analyzer" className="scroll-mt-20 border-t border-border px-5 py-20 sm:px-8">
+      <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+        <div className="lg:sticky lg:top-28 lg:self-start">
+          <p className="eyebrow">Live analyzer</p>
+          <h2 className="display mt-4 text-4xl text-foreground sm:text-5xl">
+            Put a message
+            <br />
+            under the microscope.
+          </h2>
+          <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
+            Paste up to 2,000 characters. The model returns one of three labels and a short
+            explanation. Results are advisory — they are a signal, not a verdict.
+          </p>
 
-        <div className="relative">
-          {/* Background offensive words */}
-          <div className="absolute inset-0 -m-6 pointer-events-none select-none overflow-hidden rounded-3xl" aria-hidden="true">
-            {[
-              { text: "h*a*t*e", top: "2%", left: "2%", rotate: "-12deg" },
-              { text: "s*t*u*p*i*d", top: "5%", right: "3%", rotate: "8deg" },
-              { text: "i*d*i*o*t", bottom: "30%", left: "1%", rotate: "-6deg" },
-              { text: "d*u*m*b", top: "40%", right: "1%", rotate: "15deg" },
-              { text: "u*g*l*y", bottom: "12%", left: "5%", rotate: "10deg" },
-              { text: "l*o*s*e*r", bottom: "5%", right: "4%", rotate: "-8deg" },
-              { text: "f*o*o*l", top: "25%", left: "0%", rotate: "5deg" },
-              { text: "t*r*a*s*h", top: "18%", right: "0%", rotate: "-10deg" },
-              { text: "w*e*i*r*d", bottom: "45%", right: "2%", rotate: "6deg" },
-              { text: "j*e*r*k", bottom: "50%", left: "3%", rotate: "-4deg" },
-              { text: "s*c*u*m", top: "1%", left: "35%", rotate: "3deg" },
-              { text: "c*r*e*e*p", top: "13%", left: "15%", rotate: "-8deg" },
-              { text: "m*o*r*o*n", bottom: "3%", left: "18%", rotate: "7deg" },
-              { text: "l*a*m*e", bottom: "22%", right: "0%", rotate: "-5deg" },
-              { text: "p*u*n*k", top: "12%", left: "50%", rotate: "11deg" },
-              { text: "g*r*o*s*s", bottom: "3%", right: "18%", rotate: "-9deg" },
-            ].map((word, i) => (
+          <div className="mt-8 flex flex-wrap gap-2">
+            {tiers.map((tier) => (
               <span
-                key={i}
-                className="absolute text-xs md:text-sm font-mono px-2 py-1 rounded-md bg-destructive/10 border border-destructive/15 text-destructive/60"
-                style={{
-                  top: word.top,
-                  bottom: word.bottom,
-                  left: word.left,
-                  right: word.right,
-                  transform: `rotate(${word.rotate})`,
-                  opacity: 0.65,
-                }}
+                key={tier.label}
+                className={`inline-flex items-center gap-2 border border-border px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] ${tier.className}`}
               >
-                {word.text}
+                <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+                {tier.label}
               </span>
             ))}
           </div>
-
-          <div className="relative z-10 bg-card border border-border rounded-2xl p-6 md:p-8 shadow-glow">
-          <Textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Type or paste text here to analyze..."
-            className="min-h-[140px] bg-muted/50 border-border/50 text-foreground placeholder:text-muted-foreground resize-none text-base mb-4"
-            maxLength={2000}
-          />
-
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">{text.length}/2000</span>
-            <Button
-              onClick={analyze}
-              disabled={loading || !text.trim()}
-              className="bg-gradient-primary hover:opacity-90 text-primary-foreground font-semibold px-6"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4 mr-2" />
-                  Analyze Text
-                </>
-              )}
-            </Button>
-          </div>
-          </div>
         </div>
 
-        {/* Result Card */}
-        {result && config && (
-          <div className={`mt-8 rounded-2xl border p-6 md:p-8 transition-all animate-in fade-in slide-in-from-bottom-4 duration-500 ${config.bgClass}`}>
-            <div className="flex items-center gap-3 mb-4">
-              <config.icon className={`w-8 h-8 ${config.colorClass}`} />
-              <div>
-                <h3 className={`text-xl font-bold ${config.colorClass}`}>{config.label}</h3>
-                <p className="text-sm text-muted-foreground">
-                  Confidence: {(result.confidence * 100).toFixed(1)}%
+        <div className="min-w-0">
+          <div className="border border-border bg-card/40">
+            <div className="flex items-center justify-between border-b border-border px-5 py-3">
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                Input
+              </span>
+              <span className="font-mono text-[10px] text-muted-foreground">
+                {text.length} / 2000
+              </span>
+            </div>
+
+            <div className="p-5">
+              <label
+                htmlFor="analyzer-input"
+                className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground"
+              >
+                Message text
+              </label>
+              <Textarea
+                id="analyzer-input"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Type or paste a message to classify..."
+                aria-describedby="analyzer-help"
+                className="mt-3 min-h-[180px] resize-none bg-background px-4 py-3 text-base leading-relaxed"
+                maxLength={2000}
+              />
+
+              <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <p
+                  id="analyzer-help"
+                  className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground"
+                >
+                  Advisory classification
                 </p>
+                <Button
+                  onClick={analyze}
+                  disabled={loading || !text.trim()}
+                  className="h-10 px-5"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      Analyzing
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" aria-hidden="true" />
+                      Analyze text
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
-            <p className="text-foreground/80 leading-relaxed">{result.explanation}</p>
           </div>
-        )}
+
+          {result && config && (
+            <div
+              role="status"
+              aria-live="polite"
+              className={`mt-4 border bg-card p-5 ${config.panelClass}`}
+            >
+              <div className="flex items-start gap-3">
+                <config.icon
+                  className={`mt-0.5 h-5 w-5 shrink-0 ${config.iconClass}`}
+                  aria-hidden="true"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                    <h3 className={`font-heading text-lg font-semibold ${config.iconClass}`}>
+                      {config.label}
+                    </h3>
+                    <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Reported confidence {confidence}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-foreground/80">
+                    {result.explanation}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );

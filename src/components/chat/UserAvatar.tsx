@@ -22,7 +22,7 @@ const UserAvatar = ({ path, name, size = 40 }: { path?: string | null; name: str
   const url = useAvatarUrl(path);
   return (
     <div
-      className="rounded-full overflow-hidden bg-gradient-primary flex items-center justify-center shrink-0 text-primary-foreground font-semibold"
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-secondary font-semibold text-foreground"
       style={{ width: size, height: size, fontSize: size * 0.4 }}
     >
       {url ? <img src={url} alt={name} className="w-full h-full object-cover" /> : (name[0] ?? "?").toUpperCase()}

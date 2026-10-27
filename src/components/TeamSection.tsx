@@ -6,20 +6,26 @@ const team = [
 ];
 
 const TeamSection = () => (
-  <section id="team" className="py-20 px-4">
-    <div className="container mx-auto max-w-5xl">
-      <h2 className="text-3xl md:text-4xl font-bold text-center mb-4 text-foreground">
-        Meet the <span className="text-gradient">Team</span>
-      </h2>
-      <p className="text-muted-foreground text-center mb-12">The people behind HateGuard AI</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {team.map((member) => (
-          <div
-            key={member.reg}
-            className="flex flex-col items-center gap-2 p-6 rounded-xl bg-card/50 border border-border/50 backdrop-blur-sm"
-          >
-            <h3 className="font-semibold text-lg text-foreground">{member.name}</h3>
-            <p className="text-sm text-muted-foreground">{member.reg}</p>
+  <section id="team" className="scroll-mt-20 border-t border-border px-5 py-20 sm:px-8">
+    <div className="mx-auto max-w-6xl">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="eyebrow">The people</p>
+          <h2 className="display mt-4 text-4xl text-foreground sm:text-5xl">Meet the team</h2>
+        </div>
+        <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
+          Four students building a safer way to talk online.
+        </p>
+      </div>
+
+      <div className="mt-10 grid grid-cols-1 gap-px border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
+        {team.map((member, index) => (
+          <div key={member.reg} className="bg-background p-6 sm:p-7">
+            <span className="font-mono text-[11px] text-muted-foreground">0{index + 1}</span>
+            <h3 className="mt-8 font-heading text-lg font-semibold tracking-tight text-foreground">
+              {member.name}
+            </h3>
+            <p className="mt-1 font-mono text-xs text-muted-foreground">{member.reg}</p>
           </div>
         ))}
       </div>

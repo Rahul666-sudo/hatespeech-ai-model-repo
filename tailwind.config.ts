@@ -71,6 +71,11 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontFamily: {
+        heading: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        body: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["Inconsolata", "ui-monospace", "SFMono-Regular", "monospace"],
+      },
       keyframes: {
         "accordion-down": {
           from: {
