@@ -2,6 +2,10 @@
 
 HateGuard AI is a web-based application designed to identify hate speech, offensive language, and safe content in text. It provides users with a simple interface to analyze text and understand its classification using AI-powered language analysis.
 
+## ATTENTION!!!!
+
+Rename the .env.example to .env before you run the the build!!!!!
+
 ## Features
 
 - **Text Analysis:** Enter text and analyze its content.
