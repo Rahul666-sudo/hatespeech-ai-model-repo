@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const facts = [
-  "Three-tier message classification",
+  "Multi-category and tiered moderation",
   "Flagged messages hidden from the receiver",
   "Three strikes, then a 24-hour block",
 ];

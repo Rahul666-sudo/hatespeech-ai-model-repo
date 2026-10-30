@@ -15,6 +15,13 @@
       "when": 1791455648009,
       "tag": "0001_avatar_read_auth_only",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793333480000,
+      "tag": "0002_multi_category_classification",
+      "breakpoints": true
     }
   ]
 }

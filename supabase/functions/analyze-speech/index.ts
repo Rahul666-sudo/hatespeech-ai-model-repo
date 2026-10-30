@@ -31,32 +31,61 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are a hate speech detection AI. Analyze the given text and classify it into exactly one of these categories:
-1. "hate_speech" - Contains hate speech targeting protected groups based on race, ethnicity, religion, gender, sexual orientation, disability, etc.
-2. "offensive" - Contains offensive, vulgar, or inappropriate language but does not target protected groups.
-3. "clean" - No hate speech or offensive language detected.
+            content: `You are a multi-category content moderation AI model. Analyze the given text and classify it into one or more of the following specific categories:
+1. "Hate Speech" - Content attacking, disparaging, or inciting hatred against protected groups based on race, ethnicity, religion, gender, sexual orientation, disability, nationality, etc.
+2. "Personal Insults" - Targeted verbal abuse, derogatory name-calling, harassment, or personal attacks demeaning an individual.
+3. "Threats" - Statements declaring intent to inflict bodily injury, physical violence, harm, or death against an individual or group.
+4. "Non-harmful Content" - Content that does not contain any hate speech, personal insults, or threats (e.g. neutral communication, friendly conversation, constructive discussion).
+5. "Offensive" - Profanity, vulgarity, or coarse language that is offensive or abrasive.
+6. "Clean" - Completely benign, appropriate, and safe communication.
+
+Classification rules:
+- Text can belong to one or more categories simultaneously (e.g., both "Hate Speech" and "Personal Insults", or both "Personal Insults" and "Threats", or "Offensive").
+- If any harmful/offensive category applies, assign all applicable categories to "categories" and do NOT include "Non-harmful Content" or "Clean".
+- If and only if no harmful category applies, assign ["Non-harmful Content", "Clean"] or ["Non-harmful Content"].
 
 Respond ONLY with valid JSON in this exact format:
-{"classification": "<category>", "confidence": <0.0-1.0>, "explanation": "<brief explanation>"}
-
-Be accurate and consider context. Sarcasm, quotes, and educational content should be analyzed carefully.`
+{
+  "categories": ["<category>", ...],
+  "classification": "<comma-separated list of categories>",
+  "confidence": <number between 0.0 and 1.0>,
+  "explanation": "<brief factual explanation of why the text matches the categories>"
+}`
           },
-          { role: "user", content: `Analyze this text for hate speech:\n\n"${text}"` }
+          { role: "user", content: `Analyze this text for content moderation:\n\n"${text}"` }
         ],
         tools: [
           {
             type: "function",
             function: {
               name: "classify_speech",
-              description: "Classify text for hate speech detection",
+              description: "Classify text for content moderation into one or more categories",
               parameters: {
                 type: "object",
                 properties: {
-                  classification: { type: "string", enum: ["hate_speech", "offensive", "clean"] },
+                  categories: {
+                    type: "array",
+                    items: {
+                      type: "string",
+                      enum: [
+                        "Hate Speech",
+                        "Personal Insults",
+                        "Threats",
+                        "Non-harmful Content",
+                        "Offensive",
+                        "Clean"
+                      ]
+                    },
+                    description: "One or more matched moderation categories"
+                  },
+                  classification: {
+                    type: "string",
+                    description: "Comma-separated list of matched categories or primary category"
+                  },
                   confidence: { type: "number", minimum: 0, maximum: 1 },
                   explanation: { type: "string" }
                 },
-                required: ["classification", "confidence", "explanation"],
+                required: ["categories", "confidence", "explanation"],
                 additionalProperties: false
               }
             }
@@ -85,23 +114,33 @@ Be accurate and consider context. Sarcasm, quotes, and educational content shoul
     const data = await response.json();
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     
+    let result: any;
     if (toolCall) {
-      const result = JSON.parse(toolCall.function.arguments);
-      return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      result = JSON.parse(toolCall.function.arguments);
+    } else {
+      // Fallback: try to parse from content
+      const content = data.choices?.[0]?.message?.content || "";
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        result = JSON.parse(jsonMatch[0]);
+      }
     }
 
-    // Fallback: try to parse from content
-    const content = data.choices?.[0]?.message?.content || "";
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return new Response(jsonMatch[0], {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!result) {
+      throw new Error("Could not parse AI response");
     }
 
-    throw new Error("Could not parse AI response");
+    // Normalize categories to ensure consistent array format
+    if (!result.categories || !Array.isArray(result.categories) || result.categories.length === 0) {
+      result.categories = result.classification ? [result.classification] : ["Non-harmful Content"];
+    }
+    if (!result.classification) {
+      result.classification = result.categories.join(", ");
+    }
+
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e) {
     console.error("analyze-speech error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {

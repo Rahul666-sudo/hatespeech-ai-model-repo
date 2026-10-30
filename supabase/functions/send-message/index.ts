@@ -22,10 +22,17 @@ async function classify(text: string, apiKey: string) {
       messages: [
         {
           role: "system",
-          content: `You are a hate speech detection AI for a chat app. Classify the message into exactly one category:
-"hate_speech" - targets protected groups (race, ethnicity, religion, gender, sexual orientation, disability, etc.).
-"offensive" - vulgar, insulting, abusive or inappropriate language not targeting protected groups.
-"clean" - no hate speech or offensive language. Casual chat, greetings and normal talk are clean.`,
+          content: `You are a multi-category content moderation AI for a chat app. Analyze the message and classify it into one or more of these categories:
+1. "Hate Speech" - targets protected groups (race, ethnicity, religion, gender, sexual orientation, disability, nationality, etc.).
+2. "Personal Insults" - targeted verbal abuse, disparaging remarks, harassment, or derogatory comments aimed at demeaning a person.
+3. "Threats" - statements declaring intent to inflict bodily injury, physical violence, harm, or death against an individual or group.
+4. "Non-harmful Content" - friendly, benign, casual, or constructive communication.
+5. "Offensive" - vulgarity, profanity, crude language, or abrasive comments.
+6. "Clean" - benign, casual, or constructive communication.
+
+Classification rules:
+- Text can belong to one or more categories (e.g., both "Hate Speech" and "Personal Insults", or both "Personal Insults" and "Threats", or "Offensive").
+- If harmful/offensive, assign all applicable categories. If benign, assign ["Non-harmful Content", "Clean"] or ["Non-harmful Content"].`,
         },
         { role: "user", content: `Classify this chat message:\n\n"${text}"` },
       ],
@@ -33,14 +40,25 @@ async function classify(text: string, apiKey: string) {
         type: "function",
         function: {
           name: "classify_speech",
-          description: "Classify text for hate speech detection",
+          description: "Classify text for content moderation into one or more categories",
           parameters: {
             type: "object",
             properties: {
-              classification: { type: "string", enum: ["hate_speech", "offensive", "clean"] },
-              confidence: { type: "number" },
+              categories: {
+                type: "array",
+                items: {
+                  type: "string",
+                  enum: ["Hate Speech", "Personal Insults", "Threats", "Non-harmful Content", "Offensive", "Clean"]
+                },
+                description: "All matching moderation categories"
+              },
+              classification: {
+                type: "string",
+                description: "Comma-separated list of matched categories"
+              },
+              confidence: { type: "number", minimum: 0, maximum: 1 },
             },
-            required: ["classification", "confidence"],
+            required: ["categories", "confidence"],
             additionalProperties: false,
           },
         },
@@ -57,10 +75,30 @@ async function classify(text: string, apiKey: string) {
   }
   const data = await res.json();
   const args = data.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-  if (!args) throw Object.assign(new Error("Detector returned no result"), { status: 502 });
-  const r = JSON.parse(args);
-  const c = ["hate_speech", "offensive", "clean"].includes(r.classification) ? r.classification : "clean";
-  return { classification: c as string, confidence: Number(r.confidence) || null };
+  let parsed: any;
+  if (args) {
+    parsed = JSON.parse(args);
+  } else {
+    const content = data.choices?.[0]?.message?.content || "";
+    const match = content.match(/\{[\s\S]*\}/);
+    if (match) parsed = JSON.parse(match[0]);
+  }
+  if (!parsed) throw Object.assign(new Error("Detector returned no result"), { status: 502 });
+
+  const rawCats: string[] = Array.isArray(parsed.categories) && parsed.categories.length > 0
+    ? parsed.categories
+    : parsed.classification
+      ? [parsed.classification]
+      : ["Non-harmful Content"];
+
+  const categories = rawCats.filter((c: string) =>
+    ["Hate Speech", "Personal Insults", "Threats", "Non-harmful Content", "Offensive", "Clean"].includes(c)
+  );
+  if (categories.length === 0) categories.push("Non-harmful Content");
+
+  const classification = categories.join(", ");
+  const confidence = Number(parsed.confidence) || null;
+  return { classification, confidence, categories };
 }
 
 Deno.serve(async (req) => {
@@ -92,16 +130,39 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!friendship) return json({ error: "You can only message people who accepted your request" }, 403);
 
-    const { classification, confidence } = await classify(text, Deno.env.get("LOVABLE_API_KEY")!);
+    const { classification, confidence, categories } = await classify(text, Deno.env.get("LOVABLE_API_KEY")!);
 
-    const { data: message, error } = await admin
+    let messageData: any;
+    const { data: insertedMessage, error: insertError } = await admin
       .from("messages")
       .insert({ sender_id: user.id, receiver_id: receiverId, content: text, classification, confidence })
       .select()
       .single();
-    if (error) throw error;
 
-    const flagged = classification !== "clean";
+    if (insertError) {
+      // Graceful fallback if database still enforces legacy check constraint ('clean','offensive','hate_speech')
+      if (insertError.message?.includes("classification")) {
+        const legacyClassification = categories.includes("Hate Speech")
+          ? "hate_speech"
+          : (categories.includes("Personal Insults") || categories.includes("Threats") || categories.includes("Offensive"))
+            ? "offensive"
+            : "clean";
+        const retry = await admin
+          .from("messages")
+          .insert({ sender_id: user.id, receiver_id: receiverId, content: text, classification: legacyClassification, confidence })
+          .select()
+          .single();
+        if (retry.error) throw retry.error;
+        messageData = retry.data;
+        messageData.classification = classification;
+      } else {
+        throw insertError;
+      }
+    } else {
+      messageData = insertedMessage;
+    }
+
+    const flagged = categories.some((c: string) => c !== "Non-harmful Content" && c !== "Clean");
     let strikes = me?.strikes ?? 0;
     let blocked_until: string | null = null;
     if (flagged) {
@@ -113,7 +174,7 @@ Deno.serve(async (req) => {
       await admin.from("profiles").update({ strikes, blocked_until }).eq("id", user.id);
     }
 
-    return json({ message, flagged, strikes, strike_limit: STRIKE_LIMIT, blocked_until });
+    return json({ message: messageData, flagged, strikes, strike_limit: STRIKE_LIMIT, blocked_until, categories });
   } catch (e) {
     console.error("send-message error", e);
     return json({ error: e instanceof Error ? e.message : "Unknown error" }, (e as any)?.status ?? 500);

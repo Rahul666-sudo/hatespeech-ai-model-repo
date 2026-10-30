@@ -9,10 +9,28 @@ const outputs = [
     color: "text-primary",
   },
   {
+    label: "Non-harmful Content",
+    detail: "Permitted in chat",
+    icon: ShieldCheck,
+    color: "text-primary",
+  },
+  {
     label: "Offensive",
     detail: "Warning label",
     icon: AlertTriangle,
     color: "text-warning",
+  },
+  {
+    label: "Personal Insults",
+    detail: "Flagged & strike warning",
+    icon: AlertTriangle,
+    color: "text-warning",
+  },
+  {
+    label: "Threats",
+    detail: "Hidden & strike applied",
+    icon: AlertOctagon,
+    color: "text-destructive",
   },
   {
     label: "Hate speech",
@@ -32,8 +50,8 @@ const features = [
     desc: "Results come back as soon as the model responds — no page reload, no extra steps.",
   },
   {
-    title: "Three-tier output",
-    desc: "Clean, offensive, or hate speech. Every result is labeled, explained, and easy to scan.",
+    title: "Multi-category moderation",
+    desc: "Hate speech, personal insults, threats, non-harmful content, offensive, or clean. Every result is categorized, explained, and actionable.",
   },
 ];
 
@@ -51,8 +69,9 @@ const HeroSection = () => {
             <span className="text-primary">the conversation.</span>
           </h1>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            HateGuard AI reads a message in three tiers — hate speech, offensive, or clean — and
-            explains the call in plain language.
+            HateGuard AI evaluates messages across multi-category classifications — Hate Speech,
+            Personal Insults, Threats, and Non-harmful Content, alongside Clean and Offensive
+            tiers — and explains every call in plain language.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -75,17 +94,17 @@ const HeroSection = () => {
           </p>
         </div>
 
-        <aside className="border border-border bg-card/40" aria-label="Detection output tiers">
+        <aside className="border border-border bg-card/40" aria-label="Detection output classifications">
           <div className="flex items-center justify-between border-b border-border px-5 py-3">
             <span className="eyebrow">Detection output</span>
             <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-primary">
-              3 tiers
+              6 classifications
             </span>
           </div>
 
           <div className="divide-y divide-border">
-            {outputs.map((item) => (
-              <div key={item.label} className="flex items-center gap-4 px-5 py-4">
+            {outputs.map((item, idx) => (
+              <div key={item.label} className="flex items-center gap-4 px-5 py-3.5">
                 <item.icon className={`h-4 w-4 shrink-0 ${item.color}`} aria-hidden="true" />
                 <div className="min-w-0">
                   <p className="font-heading text-sm font-semibold text-foreground">{item.label}</p>
@@ -94,7 +113,7 @@ const HeroSection = () => {
                   </p>
                 </div>
                 <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                  0{outputs.indexOf(item) + 1}
+                  0{idx + 1}
                 </span>
               </div>
             ))}
@@ -102,7 +121,7 @@ const HeroSection = () => {
 
           <div className="grid grid-cols-2 divide-x divide-border border-t border-border">
             <div className="p-5">
-              <p className="font-heading text-4xl font-black tracking-tight text-foreground">03</p>
+              <p className="font-heading text-4xl font-black tracking-tight text-foreground">06</p>
               <p className="eyebrow mt-2">Classes</p>
             </div>
             <div className="p-5">

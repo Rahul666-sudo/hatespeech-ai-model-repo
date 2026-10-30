@@ -26,7 +26,44 @@ type Profile = Tables<"profiles">;
 type Request = Tables<"friend_requests">;
 type Message = Tables<"messages">;
 
-const label = (c: string) => (c === "hate_speech" ? "hate speech" : "offensive language");
+const categoryDisplayMap: Record<string, string> = {
+  hate_speech: "Hate Speech",
+  personal_insults: "Personal Insults",
+  threats: "Threats",
+  non_harmful: "Non-harmful Content",
+  clean: "Clean",
+  offensive: "Offensive",
+};
+
+const parseCategoryLabels = (raw: string): string[] => {
+  if (!raw) return ["Non-harmful Content"];
+  const parts = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const labels = parts.map((part) => {
+    const key = part.toLowerCase().replace(/[\s-]+/g, "_");
+    if (key.includes("hate")) return "Hate Speech";
+    if (key.includes("threat")) return "Threats";
+    if (key.includes("insult")) return "Personal Insults";
+    if (key.includes("offensive")) return "Offensive";
+    if (key.includes("clean")) return "Clean";
+    if (key.includes("non_harm") || key.includes("nonharm")) return "Non-harmful Content";
+    return categoryDisplayMap[key] || part;
+  });
+  const unique = Array.from(new Set(labels));
+  return unique.length > 0 ? unique : ["Non-harmful Content"];
+};
+
+const label = (c: string) => {
+  const cats = parseCategoryLabels(c).filter(
+    (cat) => cat !== "Non-harmful Content" && cat !== "Clean"
+  );
+  return cats.length > 0 ? cats.join(", ") : "Non-harmful Content";
+};
+
+const isFlagged = (c: string) => {
+  if (!c) return false;
+  const cats = parseCategoryLabels(c);
+  return cats.some((cat) => cat !== "Non-harmful Content" && cat !== "Clean");
+};
 
 const sectionLabel = "px-2 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground";
 
@@ -480,7 +517,7 @@ const Chat = () => {
                 )}
                 {messages.map((m) => {
                   const mine = m.sender_id === user.id;
-                  const flagged = m.classification !== "clean";
+                  const flagged = isFlagged(m.classification);
                   return (
                     <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                       <div className="max-w-[85%]">
